@@ -2,12 +2,11 @@ package cas
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"path"
-
-	"github.com/golang/glog"
 )
 
 // https://apereo.github.io/cas/4.2.x/protocol/REST-Protocol.html
@@ -36,9 +35,7 @@ type RestClient struct {
 
 // NewRestClient creates a new client for the cas rest protocol with the provided options
 func NewRestClient(options *RestOptions) *RestClient {
-	if glog.V(2) {
-		glog.Infof("cas: new rest client with options %v", options)
-	}
+	slog.Info("cas: new rest client with options", slog.Any("options", options))
 
 	var client *http.Client
 	if options.Client != nil {
@@ -139,7 +136,7 @@ func (c *RestClient) RequestServiceTicket(tgt TicketGrantingTicket) (ServiceTick
 
 	defer resp.Body.Close()
 
-	data, err := ioutil.ReadAll(resp.Body)
+	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}

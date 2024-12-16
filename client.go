@@ -2,11 +2,9 @@ package cas
 
 import (
 	"crypto/rand"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
-
-	"github.com/golang/glog"
 )
 
 // Options : Client configuration options
@@ -35,9 +33,7 @@ type Client struct {
 
 // NewClient creates a Client with the provided Options.
 func NewClient(options *Options) *Client {
-	if glog.V(2) {
-		glog.Infof("cas: new client with options %v", options)
-	}
+	slog.Info("cas: new client with options", slog.Any("options", options))
 
 	var tickets TicketStore
 	if options.Store != nil {
@@ -191,10 +187,7 @@ func (c *Client) RedirectToLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if glog.V(2) {
-		glog.Infof("Logging out, redirecting client to %v with status %v",
-			u, http.StatusFound)
-	}
+	slog.Info("cas: logging out, redirecting client to", slog.Any("url", u), slog.Any("status", http.StatusFound))
 
 	c.clearSession(w, r)
 	http.Redirect(w, r, u, http.StatusFound)
@@ -208,9 +201,7 @@ func (c *Client) RedirectToLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if glog.V(2) {
-		glog.Infof("Redirecting client to %v with status %v", u, http.StatusFound)
-	}
+	slog.Info("cas: redirecting client to", slog.Any("url", u), slog.Any("status", http.StatusFound))
 
 	http.Redirect(w, r, u, http.StatusFound)
 }
@@ -243,20 +234,14 @@ func (c *Client) getSession(w http.ResponseWriter, r *http.Request) {
 
 	if s, ok := c.sessions.Get(cookie.Value); ok {
 		if t, err := c.tickets.Read(s); err == nil {
-			if glog.V(1) {
-				glog.Infof("Re-used ticket %s for %s", s, t.User)
-			}
+			slog.Info("cas: re-used ticket", slog.Any("ticket", s), slog.Any("user", t.User))
 
 			setAuthenticationResponse(r, t)
 			return
 		} else {
-			if glog.V(2) {
-				glog.Infof("Ticket %v not in %T: %v", s, c.tickets, err)
-			}
+			slog.Info("cas: ticket not in store", slog.Any("ticket", s), slog.Any("error", err))
 
-			if glog.V(1) {
-				glog.Infof("Clearing ticket %s, no longer exists in ticket store", s)
-			}
+			slog.Info("cas: clearing ticket", slog.Any("ticket", s))
 
 			clearCookie(w, cookie)
 		}
@@ -264,29 +249,21 @@ func (c *Client) getSession(w http.ResponseWriter, r *http.Request) {
 
 	if ticket := r.URL.Query().Get("ticket"); ticket != "" {
 		if err := c.validateTicket(ticket, r); err != nil {
-			if glog.V(2) {
-				glog.Infof("Error validating ticket: %v", err)
-			}
+			slog.Info("cas: error validating ticket", slog.Any("error", err))
 			return // allow ServeHTTP()
 		}
 
 		c.setSession(cookie.Value, ticket)
 
 		if t, err := c.tickets.Read(ticket); err == nil {
-			if glog.V(1) {
-				glog.Infof("Validated ticket %s for %s", ticket, t.User)
-			}
+			slog.Info("cas: validated ticket", slog.Any("ticket", ticket), slog.Any("user", t.User))
 
 			setAuthenticationResponse(r, t)
 			return
 		} else {
-			if glog.V(2) {
-				glog.Infof("Ticket %v not in %T: %v", ticket, c.tickets, err)
-			}
+			slog.Info("cas: ticket not in store", slog.Any("ticket", ticket), slog.Any("error", err))
 
-			if glog.V(1) {
-				glog.Infof("Clearing ticket %s, no longer exists in ticket store", ticket)
-			}
+			slog.Info("cas: clearing ticket", slog.Any("ticket", ticket))
 
 			clearCookie(w, cookie)
 		}
@@ -310,9 +287,7 @@ func (c *Client) getCookie(w http.ResponseWriter, r *http.Request) *http.Cookie 
 			SameSite: c.cookie.SameSite,
 		}
 
-		if glog.V(2) {
-			glog.Infof("Setting %v cookie with value: %v", cookie.Name, cookie.Value)
-		}
+		slog.Info("cas: setting cookie", slog.Any("name", cookie.Name), slog.Any("value", cookie.Value))
 
 		r.AddCookie(cookie) // so we can find it later if required
 		http.SetCookie(w, cookie)
@@ -344,9 +319,7 @@ func clearCookie(w http.ResponseWriter, c *http.Cookie) {
 
 // setSession stores the session id to ticket mapping in the Client.
 func (c *Client) setSession(id string, ticket string) {
-	if glog.V(2) {
-		glog.Infof("Recording session, %v -> %v", id, ticket)
-	}
+	slog.Info("cas: recording session", slog.Any("id", id), slog.Any("ticket", ticket))
 
 	c.sessions.Set(id, ticket)
 }
@@ -357,10 +330,7 @@ func (c *Client) clearSession(w http.ResponseWriter, r *http.Request) {
 
 	if serviceTicket, ok := c.sessions.Get(cookie.Value); ok {
 		if err := c.tickets.Delete(serviceTicket); err != nil {
-			fmt.Printf("Failed to remove %v from %T: %v\n", cookie.Value, c.tickets, err)
-			if glog.V(2) {
-				glog.Errorf("Failed to remove %v from %T: %v", cookie.Value, c.tickets, err)
-			}
+			slog.Info("cas: failed to remove ticket", slog.Any("ticket", cookie.Value), slog.Any("error", err))
 		}
 
 		c.deleteSession(cookie.Value)

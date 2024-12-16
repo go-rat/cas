@@ -1,9 +1,8 @@
 package cas
 
 import (
+	"log/slog"
 	"net/http"
-
-	"github.com/golang/glog"
 )
 
 // restClientHandler handles CAS REST Protocol over HTTP Basic Authentication
@@ -15,9 +14,7 @@ type restClientHandler struct {
 // ServeHTTP handles HTTP requests, processes HTTP Basic Authentication over CAS Rest api
 // and passes requests up to its child http.Handler.
 func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if glog.V(2) {
-		glog.Infof("cas: handling %v request for %v", r.Method, r.URL)
-	}
+	slog.Info("cas: handling request", slog.Any("method", r.Method), slog.Any("url", r.URL))
 
 	username, password, ok := r.BasicAuth()
 	if !ok {
@@ -31,9 +28,7 @@ func (ch *restClientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	success, err := ch.authenticate(username, password)
 	if err != nil {
-		if glog.V(1) {
-			glog.Infof("cas: rest authentication failed %v", err)
-		}
+		slog.Info("cas: rest authentication failed", slog.Any("error", err))
 		w.Header().Set("WWW-Authenticate", "Basic realm=\"CAS Protected Area\"")
 		w.WriteHeader(401)
 		return

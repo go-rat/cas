@@ -2,9 +2,8 @@ package cas
 
 import (
 	"fmt"
+	"log/slog"
 	"net/http"
-
-	"github.com/golang/glog"
 )
 
 const (
@@ -20,9 +19,7 @@ type clientHandler struct {
 // ServeHTTP handles HTTP requests, processes CAS requests
 // and passes requests up to its child http.Handler.
 func (ch *clientHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	if glog.V(2) {
-		glog.Infof("cas: handling %v request for %v", r.Method, r.URL)
-	}
+	slog.Info("cas: handling request", slog.Any("method", r.Method), slog.Any("url", r.URL))
 
 	setClient(r, ch.c)
 
