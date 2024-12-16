@@ -218,7 +218,7 @@ func (c *Client) validateTicket(ticket string, service *http.Request) error {
 		return err
 	}
 
-	if err := c.tickets.Write(ticket, success); err != nil {
+	if err = c.tickets.Write(ticket, success); err != nil {
 		return err
 	}
 
